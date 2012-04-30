@@ -1,0 +1,186 @@
+#!/usr/bin/env python
+#-------------------------------------------------------------------------------
+"""
+    Dripy - the unwiki
+    =================
+    
+    Dripy is, at it's heart, an implimentation of diri (a 215 line wiki like 
+    program written by Anselm R. Garbe and licensed under the MIT license) and
+    uses much of the same html and many of the same concepts. It tries to 
+    impliment much of the same functionality, and extend it, in as few lines 
+    as possible, with as simple syntax as possible, to make it as easy as 
+    possible to use and modify. It is, right now, under 200 lines and I'd 
+    like to keep it that way.
+
+    It also includes a version of Jochen Kupperschmidt's pygments markdown 
+    preprocessor code ((c) 2007) which is licensed under the BSD license. 
+    Dripy inherits all licensing restrictions placed on it by using this 
+    external code and carries with it one more: if you contribute to the code, 
+    you add your name below; if you use the code you share the code, free to all,
+    and you display the following credits.
+
+    Credits:
+    Anselm R. Garbe
+    Josh Dukes
+    Jochen Kupperschmidt
+
+"""
+import os,re,string,sys
+from random import choice
+from datetime import datetime
+from markdown import TextPreprocessor,Markdown
+from pygments import highlight
+from pygments.formatters import HtmlFormatter
+from pygments.lexers import get_lexer_by_name, TextLexer
+
+config_path='/usr/local/etc/dripy'
+sys.path.append(config_path)
+import conf
+try:
+    os.environ['SCRIPT_NAME']=conf.script_name
+except:
+    pass
+replace={'slogan':conf.slogan,
+         'url_base':'http://%(SERVER_NAME)s%(SCRIPT_NAME)s' % os.environ,
+         'icon':conf.icon,
+         'includes':'',
+         'modtime':'-',
+         }
+
+ok_chars=re.compile("^[A-Za-z0-9_/']*$")
+path=os.getenv('PATH_INFO')
+if path:
+    path=os.path.abspath(path).strip('/')
+    if not re.match(ok_chars,path):
+        print "Location: %(url_base)s\n\n" % replace
+        sys.stdout.flush()
+        sys.exit()
+else:
+    path=''
+
+#-------------------------pygments code-------------------------------------------
+# Set to True if you want inline CSS styles instead of classes
+
+class CodeBlockPreprocessor(TextPreprocessor):
+    pattern = re.compile(r'^\s*@@ (.+?) @@\s*(.+?)^\s*@@', re.M|re.S)
+    formatter = HtmlFormatter()
+    def run(self, lines):
+        def repl(m):
+            try:
+                lexer = get_lexer_by_name(m.group(1))
+            except ValueError:
+                lexer = TextLexer()
+            code = highlight(m.group(2), lexer, self.formatter)
+            code = code.replace('\n\n', '\n&nbsp;\n').replace('\n', '<br />')
+            return '\n\n<div class="code">%s</div>\n\n' % code
+        return self.pattern.sub(
+            repl, lines)
+
+md = Markdown()
+md.textPreprocessors.insert(0, CodeBlockPreprocessor())
+
+#    :copyright: 2007 by Jochen Kupperschmidt.
+#    :license: BSD, see LICENSE for more details.
+#-------------------------------------------------------------------------------
+
+def menu(web_path=''):
+    """menu(cur_path) ->  string
+
+    Creates an html formatted menu.
+    """
+    html=''
+    file_path=os.path.join(conf.doc_path,web_path)
+    file_path=os.path.abspath(file_path)
+    if os.path.isdir(file_path):
+        file_list=os.listdir(file_path)
+        file_list.sort()
+        if 'index' in file_list:
+            file_list.pop(file_list.index('index'))
+        for file_name in file_list:
+            if re.match(ok_chars,file_name):
+                cur_file_path=os.path.join(file_path,file_name)
+                cur_web_path=os.path.join(web_path,file_name)
+                if os.path.isdir(cur_file_path):
+                    file_name+='/'
+                else:
+                    file_name+=''
+                if re.match(cur_web_path.strip('/'),path):
+                    html+='<li><a href="%(url)s" class="current">%(file)s</a>\n' % {
+                        'url': os.path.join(replace['url_base'],cur_web_path),
+                        'file':file_name}
+                    if os.path.isdir(cur_file_path):
+                        html+=menu(cur_web_path)
+                else:
+                    html+='<li><a href="%(url)s">%(file)s</a>\n' % {
+                        'url': os.path.join(replace['url_base'],cur_web_path),
+                        'file':file_name}
+    if html:
+        html="<ul>"+html+"</ul>"
+    return html
+
+#-------------------------------------------------------------------------------
+
+def main():
+    global replace
+    global path
+    FD=None
+    page_path=os.path.join(conf.doc_path,path)
+    replace['title']=os.path.basename(path)
+    if os.path.isfile(page_path):
+        FD=open(page_path)
+    elif os.path.isdir(page_path):
+        file_list=os.listdir(page_path)
+        file_list.sort()
+        if 'index' in file_list:
+            page_path=os.path.join(page_path,'index')
+            FD=open(page_path)
+        else:
+            for file_name in file_list:
+                if os.path.isfile(os.path.join(page_path,file_name))\
+                        and re.match(ok_chars,file_name):
+                    path=os.path.join(path,file_name)
+                    page_path=os.path.join(page_path,file_name)
+                    FD=open(page_path)
+                    break
+    else:
+        print "Location: %(url_base)s\n\n" % replace
+        sys.stdout.flush()
+        sys.exit()
+    if not FD:
+        FD=open('/dev/null')
+    replace["page"]=md.convert(FD.read())
+    FD.close()
+    for i in ['icon','slogan']:
+        if os.path.isfile(page_path+'.'+i):
+            FD=open(page_path+'.'+i)
+            if i == 'slogan':
+                replace[i]=choice(FD.readlines())
+            else:
+                replace[i]=FD.read()
+            FD.close()
+        else:
+            dirname=os.path.dirname(path).strip('/')
+            while dirname:
+                xtra_file=os.path.join(
+                    os.path.join(conf.doc_path,dirname),'index.'+i)
+                if os.path.isfile(xtra_file):
+                    FD=open(xtra_file)
+                    replace[i]=FD.read()
+                    FD.close()
+                    break
+                dirname=os.path.dirname(dirname)
+    replace["menu"]=menu()
+    replace["path"]=path
+    replace['modtime']="last modified: %(time)s" % {
+        'time':datetime.utcfromtimestamp(os.path.getmtime(page_path))}
+    FD=open(os.path.join(conf.template_path,conf.template+".html"))
+    tmpl=string.Template(FD.read())
+    FD.close()
+    for i in conf.includes:
+        replace["includes"]+=i+'\n'
+    print "Content-Type: text/html\n\n"
+    print tmpl.safe_substitute(replace)
+        
+if __name__=="__main__":
+    main()
+

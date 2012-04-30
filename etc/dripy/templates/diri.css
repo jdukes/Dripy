@@ -1,0 +1,74 @@
+body { 
+    background-color: #444; 
+    color: #ddd; 
+    font-family: sans-serif; 
+    height: 100%; 
+    margin: 0px; 
+    width: 100%; 
+}
+img { border: 0px; /* top right bottom left */ }
+a { color: #9cf; }
+div#slogan { 
+    background-color: #222; 
+    border: 0px; 
+    float: left; 
+    padding: 5px 1% 5px 1%; 
+    width: 68%; 
+}
+div#modtime { 
+    background-color: #222; 
+    border: 0px; 
+    float: left; 
+    padding: 5px 1% 5px 0px; 
+    text-align: right; 
+    width: 29%; 
+}   
+div#menu { 
+    border: 0px; 
+    float: left; 
+    font-size: 95%; 
+    min-height: 100%; 
+    padding: 0%; 
+    width: 25%; }
+div#icon { 
+    border: 0px; 
+    font-size: 70%; 
+    min-height: 100%; 
+    padding: 0%; 
+}
+#menu ul { padding: 5px 5px 5px 1.5em; }
+#menu li { 
+    list-style: none; 
+    padding: 6px; 
+}
+#menu a { 
+    color: #ddd; 
+    padding: 4px; 
+    text-decoration: none; 
+}
+#menu a:hover { 
+    background-color: #555; 
+    padding: 4px; 
+    text-decoration: none; 
+}
+#menu a.current { 
+    color: #fff; 
+    padding: 4px; 
+    text-decoration: none; 
+}
+div#page { 
+    background-color: #333; 
+    border: 0px; 
+    float: left; 
+    min-height: 100%; 
+    padding: 2%; 
+    width: 71%; 
+}
+div#bot { 
+    background-color: #222; 
+    border: 0px; 
+    clear: both; 
+    padding: 5px 1% 5px 0px; 
+    text-align: right; 
+    width: 99%; 
+}
